@@ -1,0 +1,16 @@
+{
+  "name": "capture",
+  "version": "1.0.0",
+  "description": "A minimal Desktop capturing Electron application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  },
+  "dependencies": {
+    "capture": "file:",
+    "electron-util": "^0.18.1"
+  }
+}
