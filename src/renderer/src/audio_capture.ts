@@ -1,9 +1,8 @@
-import { renderWavFile } from './wav'
+import { Observable } from 'rxjs'
 
-export class Recorder {
-  private recording_stream: MediaStream | undefined = undefined
-  private audio_context: AudioContext | undefined = undefined
-  private chunks: number[] = []
+export class Capturer {
+  private recording_stream?: MediaStream
+  private audio_context?: AudioContext
 
   private async mic(): Promise<MediaStream> {
     return navigator.mediaDevices.getUserMedia({
@@ -57,7 +56,7 @@ export class Recorder {
     return stream.getAudioTracks()[0].getSettings().sampleRate
   }
 
-  startRecording = async (): Promise<void> => {
+  startRecording = async (cb: (buffer: number[]) => void): Promise<void> => {
     if (this.recording_stream) {
       return
     }
@@ -73,7 +72,7 @@ export class Recorder {
     waveLoopbackNode.port.onmessage = (event): void => {
       const inputFrame = event.data
       // console.log(inputFrame)
-      this.chunks = this.chunks.concat(inputFrame)
+      cb(inputFrame)
     }
 
     audioSource.connect(waveLoopbackNode)
@@ -87,7 +86,6 @@ export class Recorder {
       return
     }
 
-    const sr = this.sampleRate(this.recording_stream)
     this.recording_stream.getTracks().forEach((track) => track.stop())
     this.recording_stream = undefined
 
@@ -96,18 +94,20 @@ export class Recorder {
       this.audio_context = undefined
     }
 
-    console.log(`sampleRate: ${sr}`)
-
-    // get WAV file bytes and audio params of your audio source
-    const wavBytes = renderWavFile(new Float32Array(this.chunks), {
-      isFloat: true, // floating point or 16-bit integer
-      numChannels: 1,
-      sampleRate: sr
-    })
-    await window.nodeAPI.writeFile('out.wav', wavBytes)
-
-    this.chunks = []
-
     console.log('Recording stopped')
   }
+}
+
+export function audio_stream(): Observable<number[]> {
+    const capturer = new Capturer()
+    return new Observable<number[]>((subscriber) => {
+      capturer.startRecording((buffer) => {
+        subscriber.next(buffer)
+      })
+  
+      return (): void => {
+        capturer.stopRecording()
+        subscriber.complete()
+      }}
+    )    
 }
